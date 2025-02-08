@@ -9,6 +9,7 @@ import com.apkupdater.prefs.Prefs
 import com.apkupdater.repository.AppsRepository
 import com.apkupdater.ui.theme.isDarkTheme
 import com.apkupdater.util.Clipboard
+import com.apkupdater.util.Themer
 import com.apkupdater.util.UpdatesNotification
 import com.apkupdater.worker.UpdatesWorker
 import com.google.gson.Gson
@@ -21,13 +22,13 @@ import kotlinx.coroutines.launch
 
 
 class SettingsViewModel(
-	private val mainViewModel: MainViewModel,
     private val prefs: Prefs,
     private val notification: UpdatesNotification,
     private val workManager: WorkManager,
 	private val clipboard: Clipboard,
 	private val appsRepository: AppsRepository,
-	private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
+	private val gson: Gson = GsonBuilder().setPrettyPrinting().create(),
+	private val themer: Themer
 ) : ViewModel() {
 
 	val state = MutableStateFlow<SettingsUiState>(SettingsUiState.Settings)
@@ -60,6 +61,8 @@ class SettingsViewModel(
 	fun setUseAptoide(b: Boolean) = prefs.useAptoide.put(b)
 	fun getUseApkPure() = prefs.useApkPure.get()
 	fun setUseApkPure(b: Boolean) = prefs.useApkPure.put(b)
+	fun getUsePlay() = prefs.usePlay.get()
+	fun setUsePlay(b: Boolean) = prefs.usePlay.put(b)
 	fun getAndroidTvUi() = prefs.androidTvUi.get()
 	fun setAndroidTvUi(b: Boolean) = prefs.androidTvUi.put(b)
 	fun getEnableAlarm() = prefs.enableAlarm.get()
@@ -70,7 +73,7 @@ class SettingsViewModel(
 
 	fun setTheme(theme: Int) {
 		prefs.theme.put(theme)
-		mainViewModel.setTheme(isDarkTheme(theme))
+		themer.setTheme(isDarkTheme(theme))
 	}
 
 	fun setRootInstall(b: Boolean) {
@@ -115,6 +118,12 @@ class SettingsViewModel(
 				clipboard.copy(gson.toJson(it), "App List")
 			}
 		}
+	}
+
+	fun copyAppLogs() = viewModelScope.launch(Dispatchers.IO) {
+		val process = Runtime.getRuntime().exec("logcat -d")
+		val data = process.inputStream.readBytes()
+		clipboard.copy(data.decodeToString(), "App Logs")
 	}
 
 }

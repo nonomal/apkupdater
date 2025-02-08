@@ -10,6 +10,7 @@ import com.apkupdater.data.github.GitHubReleaseAsset
 import com.apkupdater.data.ui.AppInstalled
 import com.apkupdater.data.ui.AppUpdate
 import com.apkupdater.data.ui.GitHubSource
+import com.apkupdater.data.ui.Link
 import com.apkupdater.data.ui.getApp
 import com.apkupdater.prefs.Prefs
 import com.apkupdater.service.GitHubService
@@ -82,7 +83,7 @@ class GitHubRepository(
                 versionCode = versions.second,
                 oldVersionCode = BuildConfig.VERSION_CODE.toLong(),
                 source = GitHubSource,
-                link = releases[0].assets[0].browser_download_url,
+                link = Link.Url(releases[0].assets[0].browser_download_url),
                 whatsNew = releases[0].body
             )))
         } else {
@@ -102,9 +103,13 @@ class GitHubRepository(
         currentVersion: String,
         extra: Regex?
     ) = flow {
-        val releases = service.getReleases(user, repo)
-            .filter { filterPreRelease(it) }
-            .filter { findApkAsset(it.assets).isNotEmpty() }
+        val r = service.getReleases(user, repo)
+        val releases = if (packageName == "com.apkupdater.ci") {
+            // TODO: Find a better way to do this
+            r.filter { it.name.contains("CI-Release-3.x")}
+        } else {
+            r.filter { filterPreRelease(it) }.filter { findApkAsset(it.assets).isNotEmpty() }
+        }
 
         if (releases.isNotEmpty() && Version(filterVersionTag(releases[0].tag_name)) > Version(currentVersion)) {
             val app = apps?.getApp(packageName)
@@ -116,7 +121,7 @@ class GitHubRepository(
                 versionCode = 0L,
                 oldVersionCode = app?.versionCode ?: 0L,
                 source = GitHubSource,
-                link = findApkAssetArch(releases[0].assets, extra),
+                link = findApkAssetArch(releases[0].assets, extra).let { Link.Url(it.browser_download_url, it.size) },
                 whatsNew = releases[0].body,
                 iconUri = if (apps == null) Uri.parse(releases[0].author.avatar_url) else Uri.EMPTY
             )))
@@ -149,20 +154,20 @@ class GitHubRepository(
     private fun findApkAssetArch(
         assets: List<GitHubReleaseAsset>,
         extra: Regex?
-    ): String {
+    ): GitHubReleaseAsset {
         val apks = assets
             .filter { it.browser_download_url.endsWith(".apk", true) }
             .filter { filterExtra(it, extra) }
 
         when {
-            apks.isEmpty() -> return ""
-            apks.size == 1 -> return apks.first().browser_download_url
+            apks.isEmpty() -> return GitHubReleaseAsset(0L, "")
+            apks.size == 1 -> return apks.first()
             else -> {
                 // Try to match exact arch
                 Build.SUPPORTED_ABIS.forEach { arch ->
                     apks.forEach { apk ->
                         if (apk.browser_download_url.contains(arch, true)) {
-                            return apk.browser_download_url
+                            return apk
                         }
                     }
                 }
@@ -170,7 +175,7 @@ class GitHubRepository(
                 if (Build.SUPPORTED_ABIS.contains("arm64-v8a")) {
                     apks.forEach { apk ->
                         if (apk.browser_download_url.contains("arm64", true)) {
-                            return apk.browser_download_url
+                            return apk
                         }
                     }
                 }
@@ -178,7 +183,7 @@ class GitHubRepository(
                 if (Build.SUPPORTED_ABIS.contains("x86_64")) {
                     apks.forEach { apk ->
                         if (apk.browser_download_url.contains("x64", true)) {
-                            return apk.browser_download_url
+                            return apk
                         }
                     }
                 }
@@ -186,12 +191,12 @@ class GitHubRepository(
                 if (Build.SUPPORTED_ABIS.contains("armeabi-v7a")) {
                     apks.forEach { apk ->
                         if (apk.browser_download_url.contains("arm", true)) {
-                            return apk.browser_download_url
+                            return apk
                         }
                     }
                 }
                 // If no match, return biggest apk in the hope it's universal
-                return apks.maxByOrNull { it.size }?.browser_download_url.orEmpty()
+                return apks.maxByOrNull { it.size } ?: GitHubReleaseAsset(0L, "")
             }
         }
     }

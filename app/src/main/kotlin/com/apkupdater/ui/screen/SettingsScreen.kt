@@ -57,6 +57,7 @@ import com.apkupdater.ui.theme.statusBarColor
 import com.apkupdater.util.isAndroidTv
 import com.apkupdater.viewmodel.SettingsViewModel
 import org.koin.androidx.compose.koinViewModel
+import java.util.Calendar
 
 
 @Composable
@@ -78,7 +79,7 @@ fun About() = LazyColumn(
 			LoadingImageApp(BuildConfig.APPLICATION_ID)
 			LargeTitle(stringResource(R.string.app_name), Modifier.align(CenterHorizontally))
 			MediumText("${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", Modifier.align(CenterHorizontally))
-			MediumText("Copyright © 2016-2023 rumboalla", Modifier.align(CenterHorizontally))
+			MediumText("Copyright © 2016-${Calendar.getInstance().get(Calendar.YEAR)} rumboalla", Modifier.align(CenterHorizontally))
 		}
 	}
 	item {
@@ -241,6 +242,12 @@ fun Settings(viewModel: SettingsViewModel) = LazyColumn {
 			stringResource(R.string.source_apkpure),
 			R.drawable.ic_apkpure
 		)
+		SwitchSetting(
+			{ viewModel.getUsePlay() },
+			{ viewModel.setUsePlay(it) },
+			stringResource(R.string.source_play) + " (Alpha)",
+			R.drawable.ic_play
+		)
 	}
 
 	item {
@@ -321,6 +328,12 @@ fun Settings(viewModel: SettingsViewModel) = LazyColumn {
 		ButtonSetting(
 			stringResource(R.string.copy_app_list),
 			{ viewModel.copyAppList() },
+			R.drawable.ic_root,
+			R.drawable.ic_copy
+		)
+		ButtonSetting(
+			stringResource(R.string.copy_app_logs),
+			{ viewModel.copyAppLogs() },
 			R.drawable.ic_root,
 			R.drawable.ic_copy
 		)
